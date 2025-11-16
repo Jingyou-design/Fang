@@ -4,6 +4,7 @@ import json
 from datetime import datetime
 from typing import List, Optional, Dict
 import streamlit as st
+import altair as alt
 
 from .models import Student, PartyMemberInfo
 from .enums import PartyMemberStatus, MaterialType
@@ -65,34 +66,21 @@ class PartyOrganization:
         return True
 
     def delete_student(self, student_id: str, operator: str, reason: str) -> bool:
-        """删除学生党建信息（不可逆，含二次确认）"""
-        if student_id not in self.member_infos:
-            st.error(f"❌ 未找到学号 {student_id} 的党建信息，无法删除")
-            return False
+        """真正执行删除（UI 不在这里做）"""
 
-        # 显示待删除信息
-        member_info = self.member_infos[student_id]
-        st.warning("⚠️ 即将删除以下党建信息：")
-        st.write(f"**学号**：{member_info.student.student_id}")
-        st.write(f"**姓名**：{member_info.student.name}")
-        st.write(f"**当前状态**：{member_info.status.value}")
-        st.write(f"**录入时间**：{member_info.create_time}")
-
-        # 二次确认（按钮）
-        if not st.button("确认删除（不可逆）"):
-            st.info("✅ 已取消删除操作")
-            return False
 
         # 执行删除
-        del self.member_infos[student_id]
-        self.save_data()
+        file_path = r"student_party_data.json"
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        data.pop(student_id, None)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
 
-        # 显示删除日志
-        st.success(f"✅ 成功删除学号 {student_id}（{member_info.student.name}）的党建信息")
-        with st.expander("查看删除记录"):
-            st.write(f"操作人：{operator}")
-            st.write(f"删除原因：{reason}")
-            st.write(f"删除时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        # with st.expander("查看删除记录"):
+        #     st.write(f"操作人：{operator}")
+        #     st.write(f"删除原因：{reason}")
+        #     st.write(f"删除时间：{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         return True
 
     # ------------------------------
@@ -403,6 +391,7 @@ class PartyOrganization:
         """统计各阶段人数（图表展示）"""
         st.subheader(f"📊 {self.org_name} 学生党建统计")
 
+
         # 统计各阶段人数
         status_count = {status: 0 for status in PartyMemberStatus}
         for member_info in self.member_infos.values():
@@ -417,13 +406,18 @@ class PartyOrganization:
             "党员发展阶段": status_names,
             "人数": counts
         })
-        st.bar_chart(
-            df,
-            x="党员发展阶段",
-            y="人数",
-            x_label="党员发展阶段",
-            y_label="人数"
+
+
+        # 使用Altair创建水平柱状图
+        chart = alt.Chart(df).mark_bar().encode(
+            x=alt.X('人数:Q', title='人数'),
+            y=alt.Y('党员发展阶段:N', title='发展阶段', sort='-x')
+        ).properties(
+            title=f"{self.org_name} 学生党建统计",
+            width=600,
+            height=400
         )
+        st.altair_chart(chart, use_container_width=True)
 
         # 统计表格
         total = len(self.member_infos)
