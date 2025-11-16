@@ -2,6 +2,7 @@
 import streamlit as st
 from utils.organization import PartyOrganization
 from utils.models import Student
+import json
 from utils.constants import SYSTEM_NAME, SYSTEM_ICON, PAGE_LAYOUT
 
 def main():
@@ -192,14 +193,28 @@ def main():
     # ------------------------------
     # 9. 删除学生党建信息
     # ------------------------------
-    elif menu_option == "9. 删除学生党建信息（谨慎）":  # 去掉多余的空格，和菜单文本一致
+    elif menu_option == "9. 删除学生党建信息（谨慎）":
         st.subheader("⚠️ 删除学生党建信息（不可逆）")
-        st.warning("仅允许删除错误录入、学生毕业/退学等场景的党建信息，请谨慎操作！")
-        with st.form("delete_form", clear_on_submit=True):
-            student_id = st.text_input("学号（必填）", placeholder="如：2023001")
-            operator = st.text_input("操作人（必填）", placeholder="如：王书记")
-            reason = st.text_input("删除原因（必填）", placeholder="如：学生退学、信息录入错误")
-            st.form_submit_button("提交删除申请") and org.delete_student(student_id, operator, reason)
+        st.warning("仅允许删除错误录入、学生毕业/退学等场景，请谨慎操作！")
+        file_path = r"student_party_data.json"
+        with open(file_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+
+        # 第一步：输入信息
+        student_id = st.text_input("学号（必填）")
+        operator = st.text_input("操作人（必填）")
+        reason = st.text_input("删除原因（必填）")
+
+        if st.button("提交删除申请"):
+            if student_id not in data:
+                st.error("❌ 该学不存在！")
+                return
+            else:
+                org.delete_student(student_id, operator, reason)
+                st.success(f"✅ 成功删除学号 {student_id}的党建信息")
+
+
+
 
 if __name__ == "__main__":
     main()
